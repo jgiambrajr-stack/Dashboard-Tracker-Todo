@@ -2,7 +2,6 @@
 
 import { useState, useRef } from 'react'
 import { Message } from '@/lib/types'
-import ChatThread from './ChatThread'
 
 interface OnboardingShellProps {
   userId: string
@@ -10,16 +9,14 @@ interface OnboardingShellProps {
 }
 
 export default function OnboardingShell({ userId, initialMessages }: OnboardingShellProps) {
-  const [submitted, setSubmitted] = useState(false)
-  const [pendingMessage, setPendingMessage] = useState<string | null>(null)
   const [value, setValue] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   function handleSend() {
     const trimmed = value.trim()
     if (!trimmed) return
-    setPendingMessage(trimmed)
-    setSubmitted(true)
+    sessionStorage.setItem('onboarding_message', trimmed)
+    router.push('/chat')
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -34,19 +31,6 @@ export default function OnboardingShell({ userId, initialMessages }: OnboardingS
     if (!el) return
     el.style.height = 'auto'
     el.style.height = `${Math.min(el.scrollHeight, 240)}px`
-  }
-
-  if (submitted) {
-    return (
-      <ChatThread
-        initialMessages={initialMessages}
-        userId={userId}
-        isOnboarding={true}
-        isFullPage={true}
-        autoSendMessage={pendingMessage}
-        onAutoSendConsumed={() => setPendingMessage(null)}
-      />
-    )
   }
 
   return (

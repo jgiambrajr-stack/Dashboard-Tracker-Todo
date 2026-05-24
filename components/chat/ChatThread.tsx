@@ -187,13 +187,13 @@ export default function ChatThread({
     <div className="flex flex-col h-full" style={{ background: 'transparent' }}>
       {/* Header */}
       {isFullPage ? (
-        !isOnboarding && (
-          <div
-            className="shrink-0 flex items-center justify-between px-4 py-2.5"
-          >
-            <span className="text-xs font-medium opacity-30" style={{ color: 'var(--text)' }}>
-              Chat thread
-            </span>
+        <div
+          className="shrink-0 flex items-center justify-between px-4 py-2.5"
+        >
+          <span className="text-xs font-medium opacity-30" style={{ color: 'var(--text)' }}>
+            Chat thread
+          </span>
+          {!isOnboarding && (
             <button
               onClick={() => router.push('/dashboard?chat=open')}
               className="text-xs opacity-30 hover:opacity-60 transition-opacity"
@@ -201,8 +201,8 @@ export default function ChatThread({
             >
               ↓
             </button>
-          </div>
-        )
+          )}
+        </div>
       ) : (
         <div
           className="flex items-center justify-between px-4 py-2.5 shrink-0"
@@ -280,7 +280,7 @@ export default function ChatThread({
       </div>
 
       {/* Input */}
-      <div className="shrink-0 px-3 pb-3 pt-0">
+      <div className="shrink-0 px-3 pt-0" style={{ paddingBottom: isFullPage ? '32px' : '12px' }}>
         <ChatInput
           onSend={sendMessage}
           disabled={isStreaming}

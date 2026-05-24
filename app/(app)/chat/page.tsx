@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import ChatThread from '@/components/chat/ChatThread'
-import OnboardingShell from '@/components/chat/OnboardingShell'
+import OnboardingChatShell from '@/components/chat/OnboardingChatShell'
 
 export default async function ChatPage() {
   const supabase = await createClient()
@@ -27,35 +27,30 @@ export default async function ChatPage() {
 
   const isOnboarding = !profile?.onboarded
 
-  if (isOnboarding) {
-    return (
-      <div className="fixed inset-0">
-        <OnboardingShell userId={user.id} initialMessages={messages ?? []} />
-      </div>
-    )
-  }
-
   return (
     <div className="fixed inset-0">
-      {/* Card — margins on top and sides, fills to bottom */}
       <div
         className="absolute flex flex-col overflow-hidden"
         style={{
           top: '36px',
           left: '36px',
           right: '36px',
-          bottom: '20px',
+          bottom: '-24px',
           background: 'rgba(0,0,0,0.03)',
           border: '1px solid rgba(0,0,0,0.08)',
           borderRadius: '1.25rem',
         }}
       >
-        <ChatThread
-          initialMessages={messages ?? []}
-          userId={user.id}
-          isOnboarding={false}
-          isFullPage={true}
-        />
+        {isOnboarding ? (
+          <OnboardingChatShell userId={user.id} initialMessages={messages ?? []} />
+        ) : (
+          <ChatThread
+            initialMessages={messages ?? []}
+            userId={user.id}
+            isOnboarding={false}
+            isFullPage={true}
+          />
+        )}
       </div>
     </div>
   )
