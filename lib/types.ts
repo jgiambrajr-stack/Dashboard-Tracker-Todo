@@ -1,15 +1,22 @@
 export type TrackerWidget = {
   id: string
-  type: 'number' | 'checkbox' | 'scale' | 'duration'
+  type: 'number' | 'checkbox' | 'scale' | 'duration' | 'challenge' | 'timer' | 'journal' | 'photo'
   label: string
   icon: string
+  // number / duration
   unit?: string          // e.g. "lbs", "bottles", "min"
-  goal?: number          // target value per day
-  min?: number           // for scale type (default 1)
-  max?: number           // for scale type (default 10)
+  goal?: number          // target value per day (or minutes for duration, hours for timer)
   step?: number          // increment for counter mode (default 1)
-  display?: 'counter' | 'log'  // counter = +/- buttons, log = direct input (default: inferred from step)
-  showGraph?: boolean    // show historical bar chart
+  display?: 'counter' | 'log'
+  // scale
+  min?: number           // default 1
+  max?: number           // default 10
+  // challenge
+  challengeDays?: number // total days in challenge (e.g. 21)
+  // timer
+  timerGoalHours?: number // target hours (e.g. 72 for a 72-hr fast)
+  // weekly frequency
+  weeklyGoal?: number    // target completions per week (overrides daily goal)
 }
 
 export type DashboardConfig = {

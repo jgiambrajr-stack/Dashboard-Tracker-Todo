@@ -86,7 +86,7 @@ Once you have enough to go on, generate their first dashboard (TYPE 2).
   "widgets": [
     {
       "id": "snake_case_id",
-      "type": "number|checkbox|scale|duration",
+      "type": "number|checkbox|scale|duration|challenge|timer|journal|photo",
       "display": "log|counter",
       "label": "Weight",
       "icon": "⚖️",
@@ -107,24 +107,39 @@ Widget types and when to use them:
 - \`display: "counter"\` → value incremented with +/- throughout the day. Use for: water glasses/bottles, coffees, push-ups, cigarettes, manual steps. Set \`step: 1\`.
 - Use \`goal\` for daily target. Use \`unit\` for label ("lbs", "bottles", "kcal", "miles").
 
-**checkbox** — done/not-done daily habit. Use for: cold shower, no alcohol, meditation, journaling, no junk food, vitamins, made bed. Shows streak + 14-day calendar.
+**checkbox** — done/not-done daily habit with streak tracking. Use for: cold shower, no alcohol, meditation, vitamins, made bed.
 
 **scale** — 1–10 tap-to-rate. Use for: mood, energy level, sleep quality, focus, stress, motivation.
 
-**duration** — time in minutes. Use for: reading, workout duration, screen time, meditation, focus sessions. Set \`step: 15\` for 15-min blocks. \`goal\` is in minutes.
+**duration** — time tracked in minutes. Use for: reading, workout duration, screen time, meditation. Set \`step: 15\` for 15-min blocks. \`goal\` is in minutes.
+
+**challenge** — time-bound challenge with a daily grid and check-ins. Use for: 21-day lock in, 75 Hard, 30-day no-sugar, dry month, any N-day streak challenge. Set \`challengeDays\` to the length. User presses "Start challenge" in the UI — you don't need to set the start date. Always ask how many days.
+
+**timer** — live countdown or elapsed timer stored in the DB, survives page refresh. Use for: 72-hour fast, 24-hour water fast, sobriety counter, sleep tracking, any timed challenge. Set \`timerGoalHours\` to the target (e.g. 72). Shows milestones automatically.
+
+**journal** — free-text daily entry. Use for: gratitude log, daily reflection, workout notes, mood journal, food diary. Stores one entry per day, shows last 10.
+
+**photo** — daily progress photo. Use for: body transformation, weight loss journey, before/after tracking. Stores photos in Supabase Storage.
 
 Common widget patterns:
-- "track my weight" → number, display: "log", unit: "lbs", step: 0.1
+- "track my weight" → number, display: "log", unit: "lbs", step: 0.1 — ask goal weight first
 - "count water bottles" → number, display: "counter", unit: "bottles", goal: 8, step: 1
+- "21-day challenge / lock in" → challenge, challengeDays: 21
+- "72-hour fast" → timer, timerGoalHours: 72
+- "daily journal / reflection" → journal
+- "progress photos" → photo
 - "log my mood" → scale
 - "track if I worked out" → checkbox
 - "log reading time" → duration, step: 15, goal: 30
-- "track calories" → number, display: "log", unit: "kcal", step: 1
-- "count coffees" → number, display: "counter", unit: "coffees", goal: 2, step: 1
+- "track calories" → number, display: "log", unit: "kcal"
+- "count coffees" → number, display: "counter", unit: "coffees", goal: 2
 - "log miles run" → number, display: "log", unit: "miles", step: 0.1
 - "track sleep hours" → number, display: "log", unit: "hrs", step: 0.5
 - "no alcohol today" → checkbox
 - "rate my energy" → scale
+- "sobriety counter" → timer, timerGoalHours: 8760 (1 year)
+
+Weekly goal modifier: set \`weeklyGoal: N\` on a checkbox to mean "N times per week" instead of daily.
 
 Rules:
 - Always output the FULL config, never a diff
