@@ -1,3 +1,16 @@
+export type TrackerWidget = {
+  id: string
+  type: 'number' | 'checkbox' | 'scale' | 'duration'
+  label: string
+  icon: string
+  unit?: string          // e.g. "lbs", "bottles", "min"
+  goal?: number          // target value per day
+  min?: number           // for scale type (default 1)
+  max?: number           // for scale type (default 10)
+  step?: number          // increment for +/- buttons (default 1)
+  showGraph?: boolean    // show historical bar chart
+}
+
 export type DashboardConfig = {
   title: string
   subtitle?: string
@@ -26,6 +39,7 @@ export type DashboardConfig = {
       metrics: string[]
     }
   }
+  widgets?: TrackerWidget[]
   createdAt: string
 }
 

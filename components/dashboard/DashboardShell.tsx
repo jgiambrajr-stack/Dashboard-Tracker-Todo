@@ -14,6 +14,7 @@ interface DashboardShellProps {
   initialMessages: Message[]
   todayLogs: { task_id: string; completed: boolean; date: string }[]
   zynLog: { count: number; goal: number; date: string } | null
+  widgetLogs: Record<string, { date: string; value: number }[]>
 }
 
 export default function DashboardShell({
@@ -22,6 +23,7 @@ export default function DashboardShell({
   initialMessages,
   todayLogs,
   zynLog,
+  widgetLogs,
 }: DashboardShellProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -125,6 +127,7 @@ export default function DashboardShell({
           userId={userId}
           todayLogs={todayLogs}
           zynLog={zynLog}
+          widgetLogs={widgetLogs}
           createdAt={dashboard.created_at}
         />
       </div>
