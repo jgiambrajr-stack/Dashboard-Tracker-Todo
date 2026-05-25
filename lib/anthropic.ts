@@ -68,12 +68,12 @@ Once you have enough to go on, generate their first dashboard (TYPE 2).
     {
       "id": "snake_case_id",
       "type": "number|checkbox|scale|duration",
+      "display": "log|counter",
       "label": "Weight",
       "icon": "⚖️",
       "unit": "lbs",
       "goal": 185,
-      "step": 0.1,
-      "showGraph": true
+      "step": 0.1
     }
   ],
   "createdAt": "ISO date string"
@@ -81,11 +81,31 @@ Once you have enough to go on, generate their first dashboard (TYPE 2).
 </dashboard>
 \`\`\`
 
-Widget types:
-- **number** — logged numeric value (weight, water bottles, calories, steps). Use \`unit\`, \`goal\`, and \`step\` (e.g. \`step: 0.1\` for weight in lbs, \`step: 1\` for bottles).
-- **checkbox** — simple done/not-done habit with streak tracking (cold shower, no alcohol, journaling).
-- **scale** — 1–10 daily rating (mood, energy, sleep quality). Use \`min: 1, max: 10\`.
-- **duration** — time in minutes (reading, workout, screen time). Use \`step\` for increment size (e.g. \`step: 15\` for 15-min blocks), \`goal\` in minutes.
+Widget types and when to use them:
+
+**number** — any numeric daily value. Choose \`display\` carefully:
+- \`display: "log"\` → one value typed in per day. Use for: weight, body fat %, miles run, hours slept, calories, blood glucose. Set \`step: 0.1\` for decimals.
+- \`display: "counter"\` → value incremented with +/- throughout the day. Use for: water glasses/bottles, coffees, push-ups, cigarettes, manual steps. Set \`step: 1\`.
+- Use \`goal\` for daily target. Use \`unit\` for label ("lbs", "bottles", "kcal", "miles").
+
+**checkbox** — done/not-done daily habit. Use for: cold shower, no alcohol, meditation, journaling, no junk food, vitamins, made bed. Shows streak + 14-day calendar.
+
+**scale** — 1–10 tap-to-rate. Use for: mood, energy level, sleep quality, focus, stress, motivation.
+
+**duration** — time in minutes. Use for: reading, workout duration, screen time, meditation, focus sessions. Set \`step: 15\` for 15-min blocks. \`goal\` is in minutes.
+
+Common widget patterns:
+- "track my weight" → number, display: "log", unit: "lbs", step: 0.1
+- "count water bottles" → number, display: "counter", unit: "bottles", goal: 8, step: 1
+- "log my mood" → scale
+- "track if I worked out" → checkbox
+- "log reading time" → duration, step: 15, goal: 30
+- "track calories" → number, display: "log", unit: "kcal", step: 1
+- "count coffees" → number, display: "counter", unit: "coffees", goal: 2, step: 1
+- "log miles run" → number, display: "log", unit: "miles", step: 0.1
+- "track sleep hours" → number, display: "log", unit: "hrs", step: 0.5
+- "no alcohol today" → checkbox
+- "rate my energy" → scale
 
 Rules:
 - Always output the FULL config, never a diff

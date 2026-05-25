@@ -1,11 +1,12 @@
 'use client'
 
-// NumberWidget — for countable or measurable daily values.
-// Examples: water bottles (unit="bottles", step=1, goal=8)
-//           weight log (unit="lbs", step=0.1, showGraph=true)
-//           calories, steps, push-ups, pages read
+// NumberWidget — two interaction modes:
+//   counter: +/- buttons (water bottles, push-ups, coffees, steps)
+//   log:     direct input with yesterday context (weight, sleep hours, calories, miles)
+//
+// Mode is set by widget.display, or inferred: step < 1 → log, step >= 1 without a small goal → counter
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { TrackerWidget } from '@/lib/types'
 import BarChart from './BarChart'
@@ -18,26 +19,35 @@ interface NumberWidgetProps {
   accentColor?: string
 }
 
-function calcStreak(history: { date: string; value: number }[], goal?: number): number {
-  const today = new Date().toISOString().split('T')[0]
+// ─── Helpers ───────────────────────────────────────────────────────────────
+
+function inferMode(widget: TrackerWidget): 'counter' | 'log' {
+  if (widget.display) return widget.display
+  // Fractional step → log (weight 0.1, sleep 0.5, etc.)
+  if ((widget.step ?? 1) < 1) return 'log'
+  // Large goal → log (calories 2000, steps 10000)
+  if (widget.goal && widget.goal > 50) return 'log'
+  return 'counter'
+}
+
+function fmt(value: number, step: number): string {
+  if (step < 1) return value.toFixed(1)
+  if (step >= 100) return value.toLocaleString()
+  return String(Math.round(value))
+}
+
+function calcStreak(history: { date: string; value: number }[], goal?: number, today = ''): number {
   const byDate: Record<string, number> = {}
   history.forEach((h) => { byDate[h.date] = h.value })
-
   let streak = 0
   for (let i = 0; i <= 60; i++) {
     const d = new Date()
     d.setDate(d.getDate() - i)
-    const dateStr = d.toISOString().split('T')[0]
-    const val = byDate[dateStr] ?? 0
-
-    if (dateStr === today && val === 0) continue  // today not logged yet — don't break streak
-
+    const ds = d.toISOString().split('T')[0]
+    const val = byDate[ds] ?? 0
+    if (ds === today && val === 0) continue
     const met = goal !== undefined ? val >= goal : val > 0
-    if (met) {
-      streak++
-    } else {
-      break
-    }
+    if (met) streak++; else break
   }
   return streak
 }
@@ -45,10 +55,244 @@ function calcStreak(history: { date: string; value: number }[], goal?: number): 
 function calcAvg(history: { date: string; value: number }[], days = 14): number {
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - days)
-  const recent = history.filter((h) => new Date(h.date) >= cutoff && h.value > 0)
-  if (recent.length === 0) return 0
+  const recent = history.filter((h) => new Date(h.date + 'T00:00') >= cutoff && h.value > 0)
+  if (!recent.length) return 0
   return recent.reduce((s, h) => s + h.value, 0) / recent.length
 }
+
+function getYesterday(): string {
+  const d = new Date()
+  d.setDate(d.getDate() - 1)
+  return d.toISOString().split('T')[0]
+}
+
+// ─── Stat card ─────────────────────────────────────────────────────────────
+
+function StatCard({ label, value, accent }: { label: string; value: string; accent: string }) {
+  return (
+    <div
+      className="rounded-xl p-3 flex flex-col items-center justify-center text-center"
+      style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.06)' }}
+    >
+      <span className="text-2xl font-medium tabular-nums leading-none" style={{ color: accent }}>
+        {value}
+      </span>
+      <span className="text-[9px] uppercase tracking-widest mt-1.5" style={{ color: 'rgba(17,17,17,0.35)' }}>
+        {label}
+      </span>
+    </div>
+  )
+}
+
+// ─── Log mode — direct input with context ──────────────────────────────────
+
+function LogMode({
+  widget, userId, value, history, accentColor, today, onPersist,
+}: {
+  widget: TrackerWidget
+  userId: string
+  value: number
+  history: { date: string; value: number }[]
+  accentColor: string
+  today: string
+  onPersist: (v: number) => Promise<void>
+}) {
+  const step = widget.step ?? 1
+  const [inputStr, setInputStr] = useState(value > 0 ? fmt(value, step) : '')
+  const [saved, setSaved] = useState(value > 0)
+  const [saving, setSaving] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const yesterdayVal = history.find((h) => h.date === getYesterday())?.value
+  const avg = calcAvg(history)
+
+  const parsed = parseFloat(inputStr)
+  const isValid = !isNaN(parsed) && parsed > 0
+
+  // Delta vs yesterday
+  const delta = (isValid && yesterdayVal) ? parsed - yesterdayVal : null
+  const deltaStr = delta !== null
+    ? `${delta > 0 ? '+' : ''}${fmt(Math.abs(delta), step)} vs yesterday`
+    : null
+  const deltaColor = delta === null ? '' : delta === 0 ? 'rgba(17,17,17,0.4)' : delta > 0 ? 'var(--danger)' : 'var(--success)'
+
+  async function handleLog() {
+    if (!isValid) return
+    setSaving(true)
+    await onPersist(parsed)
+    setSaved(true)
+    setSaving(false)
+  }
+
+  function handleKey(e: React.KeyboardEvent) {
+    if (e.key === 'Enter') handleLog()
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Input card */}
+      <div
+        className="rounded-2xl p-6 flex flex-col items-center gap-3"
+        style={{
+          background: 'rgba(0,0,0,0.03)',
+          border: `1px solid ${saved ? 'rgba(34,197,94,0.25)' : 'rgba(0,0,0,0.06)'}`,
+        }}
+      >
+        <p className="text-[10px] uppercase tracking-widest" style={{ color: 'rgba(17,17,17,0.3)' }}>
+          Today&apos;s {widget.label.toLowerCase()}
+        </p>
+
+        {/* Big number input */}
+        <div className="flex items-baseline gap-2">
+          <input
+            ref={inputRef}
+            type="number"
+            inputMode="decimal"
+            value={inputStr}
+            onChange={(e) => { setInputStr(e.target.value); setSaved(false) }}
+            onKeyDown={handleKey}
+            placeholder={yesterdayVal ? fmt(yesterdayVal, step) : '—'}
+            className="bg-transparent outline-none tabular-nums text-center w-40"
+            style={{
+              fontSize: '64px',
+              fontWeight: 500,
+              color: saved ? 'var(--success)' : 'var(--text)',
+              fontFamily: 'inherit',
+              lineHeight: 1,
+            }}
+          />
+          {widget.unit && (
+            <span className="text-lg" style={{ color: 'rgba(17,17,17,0.3)', paddingBottom: '6px' }}>
+              {widget.unit}
+            </span>
+          )}
+        </div>
+
+        {/* Delta vs yesterday */}
+        {deltaStr && (
+          <span className="text-xs" style={{ color: deltaColor }}>
+            {deltaStr}
+          </span>
+        )}
+
+        {/* Yesterday context */}
+        {yesterdayVal !== undefined && !deltaStr && (
+          <span className="text-xs" style={{ color: 'rgba(17,17,17,0.35)' }}>
+            Yesterday: {fmt(yesterdayVal, step)} {widget.unit}
+          </span>
+        )}
+
+        {/* Log button */}
+        <button
+          onClick={handleLog}
+          disabled={!isValid || saving}
+          className="mt-1 px-6 py-2.5 rounded-xl text-sm font-medium transition-all active:scale-95 disabled:opacity-30"
+          style={{
+            background: saved ? 'rgba(34,197,94,0.12)' : '#111',
+            color: saved ? 'var(--success)' : '#fff',
+            border: saved ? '1px solid rgba(34,197,94,0.3)' : 'none',
+          }}
+        >
+          {saving ? 'Saving…' : saved ? 'Logged ✓' : `Log ${widget.unit ?? 'value'}`}
+        </button>
+      </div>
+
+      {/* Context row */}
+      {avg > 0 && (
+        <div
+          className="rounded-xl px-4 py-3 flex justify-between items-center"
+          style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.06)' }}
+        >
+          <span className="text-xs" style={{ color: 'rgba(17,17,17,0.4)' }}>14-day average</span>
+          <span className="text-sm font-medium tabular-nums" style={{ color: 'var(--text)' }}>
+            {fmt(avg, step)} {widget.unit}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Counter mode — +/- increment buttons ──────────────────────────────────
+
+function CounterMode({
+  widget, value, accentColor, onPersist,
+}: {
+  widget: TrackerWidget
+  value: number
+  accentColor: string
+  onPersist: (v: number) => Promise<void>
+}) {
+  const step = widget.step ?? 1
+  const atGoal = widget.goal !== undefined && value >= widget.goal
+  const overGoal = widget.goal !== undefined && value > widget.goal
+  const pct = widget.goal ? Math.min((value / widget.goal) * 100, 100) : 0
+
+  return (
+    <div className="space-y-3">
+      {/* Big counter card */}
+      <div
+        className="rounded-2xl p-6 flex flex-col items-center gap-3"
+        style={{
+          background: 'rgba(0,0,0,0.03)',
+          border: `1px solid ${atGoal ? 'rgba(34,197,94,0.2)' : overGoal ? 'rgba(239,68,68,0.2)' : 'rgba(0,0,0,0.06)'}`,
+        }}
+      >
+        <div
+          className="text-8xl font-medium tabular-nums leading-none"
+          style={{ color: atGoal ? 'var(--success)' : overGoal ? 'var(--danger)' : 'var(--text)' }}
+        >
+          {fmt(value, step)}
+        </div>
+
+        {/* Progress bar toward goal */}
+        {widget.goal !== undefined && (
+          <>
+            <div className="w-full max-w-[200px] h-1 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.08)' }}>
+              <div
+                className="h-full rounded-full transition-all duration-500"
+                style={{ width: `${pct}%`, background: atGoal ? 'var(--success)' : accentColor }}
+              />
+            </div>
+            <span className="text-xs" style={{ color: atGoal ? 'var(--success)' : 'rgba(17,17,17,0.4)' }}>
+              {atGoal ? `Goal reached ✓` : `${fmt(widget.goal - value, step)} ${widget.unit ?? ''} to go`.trim()}
+            </span>
+          </>
+        )}
+
+        {widget.unit && !widget.goal && (
+          <span className="text-xs uppercase tracking-widest" style={{ color: 'rgba(17,17,17,0.3)' }}>
+            {widget.unit} today
+          </span>
+        )}
+      </div>
+
+      {/* +/− */}
+      <div className="flex items-center justify-center gap-6">
+        <button
+          onClick={() => onPersist(value - step)}
+          disabled={value <= 0}
+          className="w-16 h-16 rounded-2xl text-3xl font-light flex items-center justify-center transition-all active:scale-95 disabled:opacity-20"
+          style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', color: '#111' }}
+        >
+          −
+        </button>
+        <div className="text-[10px] uppercase tracking-widest text-center" style={{ color: 'rgba(17,17,17,0.3)' }}>
+          {widget.unit ?? 'count'}
+        </div>
+        <button
+          onClick={() => onPersist(value + step)}
+          className="w-16 h-16 rounded-2xl text-3xl font-light flex items-center justify-center transition-all active:scale-95"
+          style={{ background: '#111', color: '#fff' }}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ─── Main component ─────────────────────────────────────────────────────────
 
 export default function NumberWidget({
   widget,
@@ -60,148 +304,64 @@ export default function NumberWidget({
   const supabase = createClient()
   const today = new Date().toISOString().split('T')[0]
   const step = widget.step ?? 1
+  const mode = inferMode(widget)
 
   const [value, setValue] = useState<number>(todayValue ?? 0)
-  const [editing, setEditing] = useState(false)
-  const [inputStr, setInputStr] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
-
-  const streak = calcStreak([...history.filter(h => h.date !== today), { date: today, value }], widget.goal)
+  const streak = calcStreak([...history.filter(h => h.date !== today), { date: today, value }], widget.goal, today)
   const avg = calcAvg(history)
   const chartHistory = [...history.filter(h => h.date !== today), ...(value > 0 ? [{ date: today, value }] : [])]
 
-  const overGoal = widget.goal !== undefined && value > widget.goal
-  const atGoal = widget.goal !== undefined && value >= widget.goal
-  const statusColor = overGoal ? 'var(--danger)' : atGoal ? 'var(--success)' : 'var(--text)'
-
-  async function persist(newVal: number) {
-    const clamped = Math.max(0, Math.round(newVal / step) * step)
+  const persist = useCallback(async (newVal: number) => {
+    const clamped = Math.max(0, newVal)
     setValue(clamped)
     await supabase.from('widget_logs').upsert(
       { user_id: userId, widget_id: widget.id, date: today, value: clamped },
       { onConflict: 'user_id,widget_id,date' }
     )
-  }
-
-  function startEdit() {
-    setInputStr(value > 0 ? String(value) : '')
-    setEditing(true)
-    setTimeout(() => inputRef.current?.select(), 10)
-  }
-
-  function commitEdit() {
-    const parsed = parseFloat(inputStr)
-    setEditing(false)
-    if (!isNaN(parsed) && parsed >= 0) {
-      persist(parsed)
-    }
-  }
-
-  const displayValue = step < 1 ? value.toFixed(1) : String(Math.round(value))
+  }, [supabase, userId, widget.id, today])
 
   return (
     <div className="space-y-4 pb-2">
-      {/* Stat cards row */}
+      {/* Stat cards */}
       <div className="grid grid-cols-3 gap-2">
-        {[
-          {
-            label: widget.goal ? 'Daily Goal' : 'Today',
-            value: widget.goal ? String(widget.goal) : (value > 0 ? displayValue : '—'),
-            sub: widget.unit,
-          },
-          { label: 'Day Streak', value: streak > 0 ? String(streak) : '—', sub: streak === 1 ? 'day' : 'days' },
-          { label: '14-Day Avg', value: avg > 0 ? (step < 1 ? avg.toFixed(1) : Math.round(avg).toString()) : '—', sub: widget.unit },
-        ].map((card) => (
-          <div
-            key={card.label}
-            className="rounded-xl p-3 flex flex-col items-center justify-center text-center"
-            style={{ background: 'rgba(0,0,0,0.03)', border: '1px solid rgba(0,0,0,0.06)' }}
-          >
-            <span
-              className="text-2xl font-medium tabular-nums leading-none"
-              style={{ color: accentColor }}
-            >
-              {card.value}
-            </span>
-            <span
-              className="text-[9px] uppercase tracking-widest mt-1.5"
-              style={{ color: 'rgba(17,17,17,0.35)' }}
-            >
-              {card.label}
-            </span>
-          </div>
-        ))}
+        <StatCard
+          label={widget.goal ? 'Daily Goal' : 'Streak'}
+          value={widget.goal ? fmt(widget.goal, step) : (streak > 0 ? String(streak) : '—')}
+          accent={accentColor}
+        />
+        <StatCard
+          label="Day Streak"
+          value={streak > 0 ? String(streak) : '—'}
+          accent={accentColor}
+        />
+        <StatCard
+          label="14-Day Avg"
+          value={avg > 0 ? fmt(avg, step) : '—'}
+          accent={accentColor}
+        />
       </div>
 
-      {/* Main counter */}
-      <div
-        className="rounded-2xl p-6 flex flex-col items-center gap-4"
-        style={{
-          background: 'rgba(0,0,0,0.03)',
-          border: `1px solid ${atGoal ? 'rgba(34,197,94,0.2)' : overGoal ? 'rgba(239,68,68,0.2)' : 'rgba(0,0,0,0.06)'}`,
-        }}
-      >
-        {/* Big value — tap to edit */}
-        <button
-          onClick={startEdit}
-          className="leading-none font-medium tabular-nums transition-opacity active:opacity-60"
-          style={{ fontSize: '72px', color: statusColor }}
-        >
-          {editing ? (
-            <input
-              ref={inputRef}
-              type="number"
-              value={inputStr}
-              onChange={(e) => setInputStr(e.target.value)}
-              onBlur={commitEdit}
-              onKeyDown={(e) => e.key === 'Enter' && commitEdit()}
-              className="w-48 text-center bg-transparent outline-none tabular-nums"
-              style={{ fontSize: 'inherit', color: 'inherit', fontFamily: 'inherit', fontWeight: 'inherit' }}
-              autoFocus
-            />
-          ) : (
-            displayValue
-          )}
-        </button>
+      {/* Interaction — mode-dependent */}
+      {mode === 'log' ? (
+        <LogMode
+          widget={widget}
+          userId={userId}
+          value={value}
+          history={history}
+          accentColor={accentColor}
+          today={today}
+          onPersist={async (v) => { setValue(v); await persist(v) }}
+        />
+      ) : (
+        <CounterMode
+          widget={widget}
+          value={value}
+          accentColor={accentColor}
+          onPersist={persist}
+        />
+      )}
 
-        {/* Unit label */}
-        {widget.unit && (
-          <span className="text-xs uppercase tracking-widest" style={{ color: 'rgba(17,17,17,0.3)' }}>
-            {widget.unit} today
-          </span>
-        )}
-
-        {/* Goal status */}
-        {widget.goal !== undefined && (
-          <span className="text-xs" style={{ color: atGoal ? 'var(--success)' : overGoal ? 'var(--danger)' : 'rgba(17,17,17,0.4)' }}>
-            {atGoal && !overGoal ? 'Goal reached ✓' : overGoal ? `${(value - widget.goal).toFixed(step < 1 ? 1 : 0)} over goal` : `${(widget.goal - value).toFixed(step < 1 ? 1 : 0)} to go`}
-          </span>
-        )}
-      </div>
-
-      {/* +/− buttons */}
-      <div className="flex items-center justify-center gap-6">
-        <button
-          onClick={() => persist(value - step)}
-          disabled={value <= 0}
-          className="w-14 h-14 rounded-2xl text-2xl font-light flex items-center justify-center transition-all active:scale-95 disabled:opacity-20"
-          style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', color: '#111' }}
-        >
-          −
-        </button>
-        <div className="text-[10px] uppercase tracking-widest text-center" style={{ color: 'rgba(17,17,17,0.3)' }}>
-          {step < 1 ? `±${step}` : `+${step}`}
-        </div>
-        <button
-          onClick={() => persist(value + step)}
-          className="w-14 h-14 rounded-2xl text-2xl font-light flex items-center justify-center transition-all active:scale-95"
-          style={{ background: 'rgba(0,0,0,0.04)', border: '1px solid rgba(0,0,0,0.08)', color: '#111' }}
-        >
-          +
-        </button>
-      </div>
-
-      {/* Chart */}
+      {/* Chart — always shown */}
       <div>
         <p className="text-[10px] uppercase tracking-widest mb-3" style={{ color: 'rgba(17,17,17,0.3)' }}>
           Last 14 days

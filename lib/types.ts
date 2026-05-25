@@ -7,7 +7,8 @@ export type TrackerWidget = {
   goal?: number          // target value per day
   min?: number           // for scale type (default 1)
   max?: number           // for scale type (default 10)
-  step?: number          // increment for +/- buttons (default 1)
+  step?: number          // increment for counter mode (default 1)
+  display?: 'counter' | 'log'  // counter = +/- buttons, log = direct input (default: inferred from step)
   showGraph?: boolean    // show historical bar chart
 }
 
