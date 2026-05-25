@@ -9,9 +9,10 @@ interface MessageBubbleProps {
   onPromote?: (config: DashboardConfig, messageId: string) => void
   userId?: string
   allMessages?: (Omit<Message, 'user_id'> & { user_id?: string })[]
+  activeArtifactId?: string
 }
 
-export default function MessageBubble({ message, streaming, onPromote, userId, allMessages }: MessageBubbleProps) {
+export default function MessageBubble({ message, streaming, onPromote, userId, allMessages, activeArtifactId }: MessageBubbleProps) {
   const isUser = message.role === 'user'
 
   return (
@@ -47,6 +48,7 @@ export default function MessageBubble({ message, streaming, onPromote, userId, a
           onPromote={onPromote}
           userId={userId}
           allMessages={allMessages ?? []}
+          isActiveArtifact={activeArtifactId === message.id}
         />
       )}
     </div>

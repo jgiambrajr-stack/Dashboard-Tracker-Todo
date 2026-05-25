@@ -15,6 +15,7 @@ interface DashboardCardProps {
   onPromote: (config: DashboardConfig, messageId: string) => void
   userId?: string
   allMessages?: (Omit<Message, 'user_id'> & { user_id?: string })[]
+  isActiveArtifact?: boolean
 }
 
 function timeAgo(dateStr: string): string {
@@ -34,6 +35,7 @@ export default function DashboardCard({
   onPromote,
   userId,
   allMessages = [],
+  isActiveArtifact = false,
 }: DashboardCardProps) {
   const [open, setOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
@@ -63,7 +65,7 @@ export default function DashboardCard({
         className="flex items-center gap-3 px-3 py-2.5 rounded-2xl cursor-pointer w-full max-w-[85%] transition-all"
         style={{
           background: open ? 'rgba(0,0,0,0.08)' : 'rgba(0,0,0,0.04)',
-          border: `1px solid ${open ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.07)'}`,
+          border: isActiveArtifact ? '1.5px solid rgba(0,0,0,0.35)' : `1px solid ${open ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.07)'}`,
         }}
         onClick={() => setOpen(true)}
       >
@@ -190,7 +192,14 @@ export default function DashboardCard({
                     {/* Messages */}
                     <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-2 space-y-3 min-h-0">
                       {allMessages.map((msg) => (
-                        <MessageBubble key={msg.id} message={msg} />
+                        <MessageBubble
+                          key={msg.id}
+                          message={msg}
+                          onPromote={onPromote}
+                          userId={userId}
+                          allMessages={allMessages}
+                          activeArtifactId={messageId}
+                        />
                       ))}
                     </div>
                     {/* Input */}
@@ -200,9 +209,9 @@ export default function DashboardCard({
                   </>
                 ) : (
                   <>
-                    <div className="flex items-center justify-between px-4 py-2.5 shrink-0">
-                      <span className="text-xs font-medium opacity-30" style={{ color: 'var(--text)' }}>View thread</span>
-                      <button onClick={() => setChatOpen(true)} className="text-xs opacity-30 hover:opacity-60 transition-opacity px-1">↑</button>
+                    <div className="flex items-center justify-between px-4 py-2.5 shrink-0 cursor-pointer" onClick={() => setChatOpen(true)}>
+                      <span className="text-xs font-medium opacity-30 hover:opacity-60 transition-opacity" style={{ color: 'var(--text)' }}>View thread</span>
+                      <span className="text-xs opacity-30 hover:opacity-60 transition-opacity px-1">↑</span>
                     </div>
                     <div className="px-3 pb-3">
                       <ChatInput placeholder="Make changes..." onSend={() => setChatOpen(true)} />

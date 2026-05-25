@@ -162,17 +162,15 @@ export default function DashboardShell({
             <>
               {/* Collapsed header */}
               <div
-                className="flex items-center justify-between px-4 py-2.5 shrink-0"
+                className="flex items-center justify-between px-4 py-2.5 shrink-0 cursor-pointer"
+                onClick={() => setChatOpen(true)}
               >
-                <span className="text-xs font-medium opacity-30" style={{ color: 'var(--text)' }}>
+                <span className="text-xs font-medium opacity-30 hover:opacity-60 transition-opacity" style={{ color: 'var(--text)' }}>
                   View thread
                 </span>
-                <button
-                  onClick={() => setChatOpen(true)}
-                  className="text-xs opacity-30 hover:opacity-60 transition-opacity px-1"
-                >
+                <span className="text-xs opacity-30 hover:opacity-60 transition-opacity px-1">
                   ↑
-                </button>
+                </span>
               </div>
               {/* Collapsed real input */}
               <div className="px-3 pb-3">
