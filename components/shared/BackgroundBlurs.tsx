@@ -10,22 +10,7 @@ export default function BackgroundBlurs() {
         overflow: 'hidden',
       }}
     >
-      {/* Yellow blob — top-right, bleeds in from edge */}
-      <img
-        src="/blurs/yellow.png"
-        alt=""
-        style={{
-          position: 'absolute',
-          top: '-20%',
-          right: '-20%',
-          width: '55vw',
-          maxWidth: '600px',
-          opacity: 0.9,
-          userSelect: 'none',
-        } as React.CSSProperties}
-      />
-
-      {/* Black blob — top-right corner, overlapping yellow, multiply blends on white */}
+      {/* Black blob — behind yellow, multiply blends on white */}
       <img
         src="/blurs/black.png"
         alt=""
@@ -37,6 +22,21 @@ export default function BackgroundBlurs() {
           maxWidth: '360px',
           opacity: 0.6,
           mixBlendMode: 'multiply',
+          userSelect: 'none',
+        } as React.CSSProperties}
+      />
+
+      {/* Yellow blob — top-right, in front of black */}
+      <img
+        src="/blurs/yellow.png"
+        alt=""
+        style={{
+          position: 'absolute',
+          top: '-20%',
+          right: '-20%',
+          width: '55vw',
+          maxWidth: '600px',
+          opacity: 0.9,
           userSelect: 'none',
         } as React.CSSProperties}
       />

@@ -243,7 +243,7 @@ export default function ChatThread({
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 min-h-0">
         {displayMessages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} onPromote={promoteToMain} />
+          <MessageBubble key={msg.id} message={msg} onPromote={promoteToMain} userId={userId} allMessages={displayMessages} />
         ))}
 
         {isStreaming && streamingText && (
