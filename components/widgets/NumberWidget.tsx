@@ -10,6 +10,7 @@ import { useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { TrackerWidget } from '@/lib/types'
 import BarChart from './BarChart'
+import LineChart from './LineChart'
 
 interface NumberWidgetProps {
   widget: TrackerWidget
@@ -361,12 +362,16 @@ export default function NumberWidget({
         />
       )}
 
-      {/* Chart — always shown */}
+      {/* Chart — line for log mode, bar for counter */}
       <div>
         <p className="text-[10px] uppercase tracking-widest mb-3" style={{ color: 'rgba(17,17,17,0.3)' }}>
           Last 14 days
         </p>
-        <BarChart data={chartHistory} goal={widget.goal} color={accentColor} />
+        {mode === 'log' ? (
+          <LineChart data={chartHistory} goal={widget.goal} color={accentColor} />
+        ) : (
+          <BarChart data={chartHistory} goal={widget.goal} color={accentColor} />
+        )}
       </div>
     </div>
   )
